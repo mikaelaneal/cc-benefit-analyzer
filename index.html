@@ -27,13 +27,29 @@
 
         <button id="get-recommendation">Find Best Card</button>
         <p id="recommendation"></p>
-        
+
+        <!-- Login & Signup Container -->
         <div class="login-container">
-            <h2>Login</h2>
-            <input type="email" id="email" placeholder="Enter email" autocomplete="email">
-            <input type="password" id="password" placeholder="Enter password" autocomplete="current-password">
-            <button id="login-btn">Login</button>
-            <button id="signup-btn">Sign Up</button>
+            <h2 id="login-title">Login</h2>
+
+            <!-- Login Form -->
+            <div id="login-form">
+                <input type="email" id="login-email" placeholder="Enter email" autocomplete="email">
+                <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password">
+                <button id="login-btn">Login</button>
+                <p>Don't have an account? <a href="#" id="show-signup">Sign up</a></p>
+            </div>
+
+            <!-- Signup Form (Hidden by Default) -->
+            <div id="signup-form" style="display:none;">
+                <input type="email" id="signup-email" placeholder="Enter email" autocomplete="email">
+                <input type="password" id="signup-password" placeholder="Enter password" autocomplete="new-password">
+                <input type="password" id="signup-password-confirm" placeholder="Confirm password" autocomplete="new-password">
+                <button id="signup-btn">Create Account</button>
+                <p>Already have an account? <a href="#" id="show-login">Login</a></p>
+            </div>
+
+            <!-- Logout Button -->
             <button id="logout-btn" style="display:none;">Logout</button>
             <p id="user-status">Not logged in</p>
         </div>
