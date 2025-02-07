@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
-    console.log("DOM fully loaded and parsed"); // Debugging log
+    console.log("🔥 DOM fully loaded and parsed"); // Debugging log
 
     // ---- LOGIN / SIGNUP ELEMENTS ----
     const loginForm = document.getElementById("login-form");
@@ -22,169 +22,74 @@ document.addEventListener("DOMContentLoaded", function () {
     const showLogin = document.getElementById("show-login");
     const userStatus = document.getElementById("user-status");
 
-    // ---- CREDIT CARD ELEMENTS ----
-    const cardDropdown = document.getElementById("card");
-    const addCardBtn = document.getElementById("add-card");
-    const cardsTableBody = document.getElementById("cards-table-body");
-    const expenseDropdown = document.getElementById("expense");
-    const findBestCardBtn = document.getElementById("find-best-card");
-    const recommendationText = document.getElementById("recommendation");
+    // ✅ Debugging: Check if loginBtn exists
+    if (!loginBtn) {
+        console.error("❌ ERROR: loginBtn element not found! Check index.html");
+        return;
+    }
 
     // ✅ Ensure Firebase is properly initialized
     if (!firebase.apps.length) {
-        console.error("🔥 Firebase is not initialized! Check your Firebase setup.");
-        return; // 🔹 Stop execution if Firebase isn't ready
+        console.error("🔥 Firebase is not initialized! Check Firebase setup.");
+        return;
     }
 
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    let addedCards = [];
+    // 🔹 LOGIN USER (Fix Button Click)
+    loginBtn.addEventListener("click", function () {
+        const email = loginEmail.value.trim();
+        const password = loginPassword.value.trim();
 
-    // 🔹 LOAD USER'S SAVED CARDS FROM FIREBASE
-    function loadUserCards(user) {
-        db.collection("users").doc(user.uid).get().then((doc) => {
-            if (doc.exists) {
-                addedCards = doc.data().savedCards || [];
-                updateTable();
-            }
-        }).catch((error) => {
-            console.error("❌ Error loading user data:", error);
-        });
-    }
-
-    // 🔹 UPDATE TABLE WITH ADDED CARDS
-    function updateTable() {
-        cardsTableBody.innerHTML = ""; // Clear table before adding rows
-
-        addedCards.forEach(cardKey => {
-            const cardData = benefits[cardKey];
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>${cardData.name}</td>
-                <td>${cardData.groceries}</td>
-                <td>${cardData.gas}</td>
-                <td>${cardData.travel}</td>
-                <td>${cardData.subscriptions}</td>
-                <td>
-                    <button class="remove-card" data-card="${cardKey}">Remove</button>
-                    <button class="archive-card" data-card="${cardKey}">Archive</button>
-                </td>
-            `;
-            cardsTableBody.appendChild(row);
-
-            row.querySelector(".remove-card").addEventListener("click", function () {
-                removeCard(cardKey);
-            });
-
-            row.querySelector(".archive-card").addEventListener("click", function () {
-                archiveCard(cardKey);
-            });
-        });
-    }
-
-    // 🔹 ADD SELECTED CARD TO USER'S ACCOUNT
-    addCardBtn.addEventListener("click", function () {
-        const selectedCard = cardDropdown.value;
-        if (!auth.currentUser) {
-            alert("Please log in to save your cards.");
+        if (!email || !password) {
+            alert("⚠️ Please enter both email and password.");
             return;
         }
 
-        if (addedCards.includes(selectedCard)) {
-            alert("This card is already added!");
-            return;
-        }
+        console.log("🔄 Attempting to log in with:", email); // Debugging log
 
-        addedCards.push(selectedCard);
-        updateTable();
+        auth.signInWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                console.log("✅ Login successful:", user.email);
 
-        // Save to Firebase
-        db.collection("users").doc(auth.currentUser.uid).set({ savedCards: addedCards }, { merge: true });
+                if (user.emailVerified) {
+                    userStatus.innerText = `Logged in as ${user.email}`;
+                    logoutBtn.style.display = "block";
+                    loginForm.style.display = "none";
+                    signupForm.style.display = "none";
+                } else {
+                    alert("⚠️ Your email is not verified. Please verify before logging in.");
+                    auth.signOut();
+                }
+            })
+            .catch((error) => {
+                console.error("❌ Login failed:", error.message);
+                alert("Login failed: " + error.message);
+            });
     });
 
-    // 🔹 REMOVE CARD FROM USER'S ACCOUNT & FIREBASE
-    function removeCard(cardKey) {
-        addedCards = addedCards.filter(card => card !== cardKey);
-        updateTable();
-
-        if (auth.currentUser) {
-            db.collection("users").doc(auth.currentUser.uid).set({ savedCards: addedCards }, { merge: true });
-        }
-    }
-
-    // 🔹 ARCHIVE CARD (Save It Separately)
-    function archiveCard(cardKey) {
-        if (auth.currentUser) {
-            db.collection("users").doc(auth.currentUser.uid).set({
-                archivedCards: firebase.firestore.FieldValue.arrayUnion(cardKey)
-            }, { merge: true });
-        }
-        removeCard(cardKey);
-    }
-
-    // 🔹 FIND BEST CARD FOR SELECTED EXPENSE
-    findBestCardBtn.addEventListener("click", function () {
-        if (addedCards.length === 0) {
-            alert("Please add at least one credit card.");
-            return;
-        }
-
-        const selectedExpense = expenseDropdown.value;
-        let bestCard = null;
-        let highestReward = 0;
-
-        addedCards.forEach((cardKey) => {
-            const rewardPercentage = parseFloat(benefits[cardKey][selectedExpense]);
-
-            if (rewardPercentage > highestReward) {
-                highestReward = rewardPercentage;
-                bestCard = benefits[cardKey].name;
-            }
-        });
-
-        recommendationText.innerText = bestCard 
-            ? `Use your ${bestCard} for ${selectedExpense} because it has the highest rewards rate of ${highestReward}%.`
-            : "No recommendation available.";
-    });
-
-    // 🔹 HANDLE LOGIN & LOGOUT
+    // 🔹 CHECK AUTH STATE (Fix Login Button Not Updating UI)
     auth.onAuthStateChanged((user) => {
         if (user) {
+            console.log("🔄 User is logged in:", user.email);
             userStatus.innerText = `Logged in as ${user.email}`;
             logoutBtn.style.display = "block";
             loginForm.style.display = "none";
             signupForm.style.display = "none";
-            loadUserCards(user);
         } else {
+            console.log("🚪 No user is logged in.");
             userStatus.innerText = "Not logged in";
             logoutBtn.style.display = "none";
             loginForm.style.display = "block";
-            addedCards = [];
-            updateTable();
         }
-    });
-
-    // 🔹 RESET PASSWORD FUNCTIONALITY
-    forgotPasswordLink.addEventListener("click", function () {
-        const email = loginEmail.value.trim();
-        if (!email) {
-            alert("Please enter your email before clicking 'Reset Password'.");
-            return;
-        }
-
-        auth.sendPasswordResetEmail(email)
-            .then(() => {
-                alert("A password reset email has been sent. Please check your inbox.");
-            })
-            .catch((error) => {
-                alert("Error resetting password: " + error.message);
-            });
     });
 
     // 🔹 LOGOUT USER
     logoutBtn.addEventListener("click", function () {
         auth.signOut().then(() => {
+            console.log("✅ User logged out.");
             userStatus.innerText = "Not logged in";
             logoutBtn.style.display = "none";
             loginForm.style.display = "block";
