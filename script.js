@@ -30,15 +30,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const findBestCardBtn = document.getElementById("find-best-card");
     const recommendationText = document.getElementById("recommendation");
 
+    // ✅ Ensure Firebase is properly initialized
+    if (!firebase.apps.length) {
+        console.error("🔥 Firebase is not initialized! Check your Firebase setup.");
+        return; // 🔹 Stop execution if Firebase isn't ready
+    }
+
     const db = firebase.firestore();
     const auth = firebase.auth();
-
-    // ---- CARD BENEFITS DATABASE ----
-    const benefits = {
-        "amex_blue_cash": { name: "Amex Blue Cash Preferred", groceries: "6%", gas: "1%", travel: "1%", subscriptions: "3%" },
-        "chase_freedom": { name: "Chase Freedom Flex", groceries: "3%", gas: "5%", travel: "5%", subscriptions: "1.5%" },
-        "bofa_cash": { name: "Bank of America Customized Cash", groceries: "3%", gas: "3%", travel: "2%", subscriptions: "3%" }
-    };
 
     let addedCards = [];
 
@@ -50,7 +49,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 updateTable();
             }
         }).catch((error) => {
-            console.error("Error loading user data:", error);
+            console.error("❌ Error loading user data:", error);
         });
     }
 
@@ -110,16 +109,16 @@ document.addEventListener("DOMContentLoaded", function () {
         updateTable();
 
         if (auth.currentUser) {
-            db.collection("users").doc(auth.currentUser.uid).update({ savedCards: addedCards });
+            db.collection("users").doc(auth.currentUser.uid).set({ savedCards: addedCards }, { merge: true });
         }
     }
 
     // 🔹 ARCHIVE CARD (Save It Separately)
     function archiveCard(cardKey) {
         if (auth.currentUser) {
-            db.collection("users").doc(auth.currentUser.uid).update({
+            db.collection("users").doc(auth.currentUser.uid).set({
                 archivedCards: firebase.firestore.FieldValue.arrayUnion(cardKey)
-            });
+            }, { merge: true });
         }
         removeCard(cardKey);
     }
