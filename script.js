@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const signupBtn = document.getElementById("signup-btn");
     const logoutBtn = document.getElementById("logout-btn");
     const resendEmailBtn = document.getElementById("resend-email");
+    const forgotPasswordLink = document.getElementById("forgot-password");
 
     const showSignup = document.getElementById("show-signup");
     const showLogin = document.getElementById("show-login");
@@ -30,7 +31,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const recommendationText = document.getElementById("recommendation");
 
     const db = firebase.firestore();
-    const auth = firebase.auth();
+    const auth = firebase.auth(); // ✅ Only declared once
 
     // ---- CARD BENEFITS DATABASE ----
     const benefits = {
@@ -187,21 +188,22 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     });
 
-    // 🔹 RESEND VERIFICATION EMAIL
-    resendEmailBtn.addEventListener("click", function () {
-        const user = auth.currentUser;
+    // 🔹 RESET PASSWORD FUNCTIONALITY
+    forgotPasswordLink.addEventListener("click", function () {
+        const email = loginEmail.value.trim();
 
-        if (user && !user.emailVerified) {
-            user.sendEmailVerification()
-                .then(() => {
-                    alert("A new verification email has been sent. Please check your inbox.");
-                })
-                .catch((error) => {
-                    alert("Error resending verification email: " + error.message);
-                });
-        } else {
-            alert("You must be logged in to resend the verification email.");
+        if (!email) {
+            alert("Please enter your email before clicking 'Reset Password'.");
+            return;
         }
+
+        auth.sendPasswordResetEmail(email)
+            .then(() => {
+                alert("A password reset email has been sent. Please check your inbox.");
+            })
+            .catch((error) => {
+                alert("Error resetting password: " + error.message);
+            });
     });
 
     // 🔹 LOGOUT USER
@@ -211,19 +213,5 @@ document.addEventListener("DOMContentLoaded", function () {
             logoutBtn.style.display = "none";
             loginForm.style.display = "block";
         });
-    });
-
-    // 🔹 KEEP USERS LOGGED IN
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            userStatus.innerText = `Logged in as ${user.email}`;
-            logoutBtn.style.display = "block";
-            loginForm.style.display = "none";
-            signupForm.style.display = "none";
-        } else {
-            userStatus.innerText = "Not logged in";
-            logoutBtn.style.display = "none";
-            loginForm.style.display = "block";
-        }
     });
 });
