@@ -61,9 +61,21 @@ document.addEventListener("DOMContentLoaded", function () {
             <td>${cardData.gas}</td>
             <td>${cardData.travel}</td>
             <td>${cardData.subscriptions}</td>
+            <td><button class="remove-card" data-card="${selectedCard}">Remove</button></td>
         `;
         cardsTableBody.appendChild(row);
+
+        // Add event listener to the remove button
+        row.querySelector(".remove-card").addEventListener("click", function () {
+            removeCard(selectedCard, row);
+        });
     });
+
+    // 🔹 REMOVE CARD FROM TABLE
+    function removeCard(cardKey, row) {
+        addedCards = addedCards.filter(card => card !== cardKey);
+        row.remove();
+    }
 
     // 🔹 FIND BEST CARD FOR SELECTED EXPENSE
     findBestCardBtn.addEventListener("click", function () {
