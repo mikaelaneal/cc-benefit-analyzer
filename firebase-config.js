@@ -12,3 +12,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+
+// Ensure users stay logged in
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
