@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const recommendationText = document.getElementById("recommendation");
 
     const db = firebase.firestore();
-    const auth = firebase.auth(); // ✅ Only declared once
+    const auth = firebase.auth();
 
     // ---- CARD BENEFITS DATABASE ----
     const benefits = {
@@ -42,40 +42,86 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let addedCards = [];
 
-    // 🔹 ADD SELECTED CARD TO TABLE
+    // 🔹 LOAD USER'S SAVED CARDS FROM FIREBASE
+    function loadUserCards(user) {
+        db.collection("users").doc(user.uid).get().then((doc) => {
+            if (doc.exists) {
+                addedCards = doc.data().savedCards || [];
+                updateTable();
+            }
+        }).catch((error) => {
+            console.error("Error loading user data:", error);
+        });
+    }
+
+    // 🔹 UPDATE TABLE WITH ADDED CARDS
+    function updateTable() {
+        cardsTableBody.innerHTML = ""; // Clear table before adding rows
+
+        addedCards.forEach(cardKey => {
+            const cardData = benefits[cardKey];
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${cardData.name}</td>
+                <td>${cardData.groceries}</td>
+                <td>${cardData.gas}</td>
+                <td>${cardData.travel}</td>
+                <td>${cardData.subscriptions}</td>
+                <td>
+                    <button class="remove-card" data-card="${cardKey}">Remove</button>
+                    <button class="archive-card" data-card="${cardKey}">Archive</button>
+                </td>
+            `;
+            cardsTableBody.appendChild(row);
+
+            row.querySelector(".remove-card").addEventListener("click", function () {
+                removeCard(cardKey);
+            });
+
+            row.querySelector(".archive-card").addEventListener("click", function () {
+                archiveCard(cardKey);
+            });
+        });
+    }
+
+    // 🔹 ADD SELECTED CARD TO USER'S ACCOUNT
     addCardBtn.addEventListener("click", function () {
         const selectedCard = cardDropdown.value;
+        if (!auth.currentUser) {
+            alert("Please log in to save your cards.");
+            return;
+        }
 
-        // Prevent duplicate cards
         if (addedCards.includes(selectedCard)) {
-            alert("This card has already been added!");
+            alert("This card is already added!");
             return;
         }
 
         addedCards.push(selectedCard);
-        const cardData = benefits[selectedCard];
+        updateTable();
 
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td>${cardData.name}</td>
-            <td>${cardData.groceries}</td>
-            <td>${cardData.gas}</td>
-            <td>${cardData.travel}</td>
-            <td>${cardData.subscriptions}</td>
-            <td><button class="remove-card" data-card="${selectedCard}">Remove</button></td>
-        `;
-        cardsTableBody.appendChild(row);
-
-        // Add event listener to the remove button
-        row.querySelector(".remove-card").addEventListener("click", function () {
-            removeCard(selectedCard, row);
-        });
+        // Save to Firebase
+        db.collection("users").doc(auth.currentUser.uid).set({ savedCards: addedCards }, { merge: true });
     });
 
-    // 🔹 REMOVE CARD FROM TABLE
-    function removeCard(cardKey, row) {
+    // 🔹 REMOVE CARD FROM USER'S ACCOUNT & FIREBASE
+    function removeCard(cardKey) {
         addedCards = addedCards.filter(card => card !== cardKey);
-        row.remove();
+        updateTable();
+
+        if (auth.currentUser) {
+            db.collection("users").doc(auth.currentUser.uid).update({ savedCards: addedCards });
+        }
+    }
+
+    // 🔹 ARCHIVE CARD (Save It Separately)
+    function archiveCard(cardKey) {
+        if (auth.currentUser) {
+            db.collection("users").doc(auth.currentUser.uid).update({
+                archivedCards: firebase.firestore.FieldValue.arrayUnion(cardKey)
+            });
+        }
+        removeCard(cardKey);
     }
 
     // 🔹 FIND BEST CARD FOR SELECTED EXPENSE
@@ -89,7 +135,6 @@ document.addEventListener("DOMContentLoaded", function () {
         let bestCard = null;
         let highestReward = 0;
 
-        // Compare all added cards to find the best one for the selected expense
         addedCards.forEach((cardKey) => {
             const rewardPercentage = parseFloat(benefits[cardKey][selectedExpense]);
 
@@ -99,99 +144,31 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        // Display recommendation
-        if (bestCard) {
-            recommendationText.innerText = `Use your ${bestCard} for ${selectedExpense} because it has the highest rewards rate of ${highestReward}%.`;
+        recommendationText.innerText = bestCard 
+            ? `Use your ${bestCard} for ${selectedExpense} because it has the highest rewards rate of ${highestReward}%.`
+            : "No recommendation available.";
+    });
+
+    // 🔹 HANDLE LOGIN & LOGOUT
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            userStatus.innerText = `Logged in as ${user.email}`;
+            logoutBtn.style.display = "block";
+            loginForm.style.display = "none";
+            signupForm.style.display = "none";
+            loadUserCards(user);
         } else {
-            recommendationText.innerText = "No recommendation available.";
+            userStatus.innerText = "Not logged in";
+            logoutBtn.style.display = "none";
+            loginForm.style.display = "block";
+            addedCards = [];
+            updateTable();
         }
-    });
-
-    // ---- LOGIN / SIGNUP FUNCTIONALITY ----
-
-    // 🔹 Show Signup Form & Hide Login
-    showSignup.addEventListener("click", function () {
-        loginForm.style.display = "none";
-        signupForm.style.display = "block";
-        loginTitle.innerText = "Sign Up";
-    });
-
-    // 🔹 Show Login Form & Hide Signup
-    showLogin.addEventListener("click", function () {
-        signupForm.style.display = "none";
-        loginForm.style.display = "block";
-        loginTitle.innerText = "Login";
-    });
-
-    // 🔹 LOGIN USER (ONLY IF VERIFIED)
-    loginBtn.addEventListener("click", function () {
-        const email = loginEmail.value.trim();
-        const password = loginPassword.value.trim();
-
-        if (!email || !password) {
-            alert("Please enter both email and password.");
-            return;
-        }
-
-        auth.signInWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-                const user = userCredential.user;
-
-                if (user.emailVerified) {
-                    userStatus.innerText = `Logged in as ${user.email}`;
-                    logoutBtn.style.display = "block";
-                    loginForm.style.display = "none";
-                    signupForm.style.display = "none";
-                } else {
-                    auth.signOut();
-                    alert("Your email is not verified. Please check your inbox and verify before logging in.");
-                }
-            })
-            .catch((error) => {
-                alert("Login failed: " + error.message);
-            });
-    });
-
-    // 🔹 SIGN UP USER (WITH EMAIL VERIFICATION)
-    signupBtn.addEventListener("click", function () {
-        const email = signupEmail.value.trim();
-        const password = signupPassword.value.trim();
-        const confirmPassword = signupPasswordConfirm.value.trim();
-
-        if (!email || !password || !confirmPassword) {
-            alert("Please fill out all fields.");
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            alert("Passwords do not match.");
-            return;
-        }
-
-        auth.createUserWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-                const user = userCredential.user;
-
-                // Send email verification
-                user.sendEmailVerification()
-                    .then(() => {
-                        alert("A verification email has been sent to your email address. Please verify before logging in.");
-                        signupForm.style.display = "none";
-                        loginForm.style.display = "block";
-                    })
-                    .catch((error) => {
-                        alert("Error sending verification email: " + error.message);
-                    });
-            })
-            .catch((error) => {
-                alert("Signup failed: " + error.message);
-            });
     });
 
     // 🔹 RESET PASSWORD FUNCTIONALITY
     forgotPasswordLink.addEventListener("click", function () {
         const email = loginEmail.value.trim();
-
         if (!email) {
             alert("Please enter your email before clicking 'Reset Password'.");
             return;
