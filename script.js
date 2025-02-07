@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const loginBtn = document.getElementById("login-btn");
     const signupBtn = document.getElementById("signup-btn");
     const logoutBtn = document.getElementById("logout-btn");
+    const resendEmailBtn = document.getElementById("resend-email");
 
     const showSignup = document.getElementById("show-signup");
     const showLogin = document.getElementById("show-login");
@@ -40,7 +41,7 @@ document.addEventListener("DOMContentLoaded", function () {
         loginTitle.innerText = "Login";
     });
 
-    // 🔹 Login User
+    // 🔹 Login User (Only If Verified)
     loginBtn.addEventListener("click", function () {
         const email = loginEmail.value.trim();
         const password = loginPassword.value.trim();
@@ -52,17 +53,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
         auth.signInWithEmailAndPassword(email, password)
             .then((userCredential) => {
-                userStatus.innerText = `Logged in as ${userCredential.user.email}`;
-                logoutBtn.style.display = "block";
-                loginForm.style.display = "none";
-                signupForm.style.display = "none";
+                const user = userCredential.user;
+
+                if (user.emailVerified) {
+                    userStatus.innerText = `Logged in as ${user.email}`;
+                    logoutBtn.style.display = "block";
+                    loginForm.style.display = "none";
+                    signupForm.style.display = "none";
+                } else {
+                    auth.signOut();
+                    alert("Your email is not verified. Please check your inbox and verify before logging in.");
+                }
             })
             .catch((error) => {
                 alert("Login failed: " + error.message);
             });
     });
 
-    // 🔹 Sign Up New User (with Password Matching)
+    // 🔹 Sign Up New User (with Email Verification)
     signupBtn.addEventListener("click", function () {
         const email = signupEmail.value.trim();
         const password = signupPassword.value.trim();
@@ -80,13 +88,39 @@ document.addEventListener("DOMContentLoaded", function () {
 
         auth.createUserWithEmailAndPassword(email, password)
             .then((userCredential) => {
-                userStatus.innerText = `Account created: ${userCredential.user.email}`;
-                logoutBtn.style.display = "block";
-                signupForm.style.display = "none";
+                const user = userCredential.user;
+
+                // Send email verification
+                user.sendEmailVerification()
+                    .then(() => {
+                        alert("A verification email has been sent to your email address. Please verify before logging in.");
+                        signupForm.style.display = "none";
+                        loginForm.style.display = "block";
+                    })
+                    .catch((error) => {
+                        alert("Error sending verification email: " + error.message);
+                    });
             })
             .catch((error) => {
                 alert("Signup failed: " + error.message);
             });
+    });
+
+    // 🔹 Resend Verification Email
+    resendEmailBtn.addEventListener("click", function () {
+        const user = auth.currentUser;
+
+        if (user && !user.emailVerified) {
+            user.sendEmailVerification()
+                .then(() => {
+                    alert("A new verification email has been sent. Please check your inbox.");
+                })
+                .catch((error) => {
+                    alert("Error resending verification email: " + error.message);
+                });
+        } else {
+            alert("You must be logged in to resend the verification email.");
+        }
     });
 
     // 🔹 Logout User
