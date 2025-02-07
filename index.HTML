@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Card Rewards Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Credit Card Rewards Tracker</h1>
+        
+        <label for="card">Select Your Credit Card:</label>
+        <select id="card">
+            <option value="amex_blue_cash">Amex Blue Cash Preferred</option>
+            <option value="chase_freedom">Chase Freedom Flex</option>
+            <option value="bofa_cash">Bank of America Customized Cash</option>
+        </select>
+
+        <label for="expense">Select Expense Type:</label>
+        <select id="expense">
+            <option value="groceries">Groceries</option>
+            <option value="gas">Gas</option>
+            <option value="travel">Travel</option>
+            <option value="subscriptions">Subscriptions</option>
+        </select>
+
+        <button id="get-recommendation">Find Best Card</button>
+        <p id="recommendation"></p>
+    </div>
+
+    <script src="firebase-config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
