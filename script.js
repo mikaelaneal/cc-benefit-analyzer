@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
+    console.log("DOM fully loaded and parsed"); // Debugging log
+
     const loginForm = document.getElementById("login-form");
     const signupForm = document.getElementById("signup-form");
     const loginTitle = document.getElementById("login-title");
@@ -26,6 +28,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const db = firebase.firestore();
     const auth = firebase.auth();
+
+    // 🔹 Check if elements exist before adding event listeners
+    if (!cardDropdown || !expenseDropdown || !recommendationText || !getRecommendationBtn) {
+        console.error("One or more elements not found in index.html!");
+        return; // Stop execution if elements are missing
+    }
 
     // 🔹 Show Signup Form & Hide Login
     showSignup.addEventListener("click", function () {
@@ -139,34 +147,34 @@ document.addEventListener("DOMContentLoaded", function () {
             logoutBtn.style.display = "block";
             loginForm.style.display = "none";
             signupForm.style.display = "none";
-
-            // Enable recommendations only for logged-in users
-            getRecommendationBtn.addEventListener("click", function () {
-                const selectedCard = cardDropdown.value;
-                const selectedExpense = expenseDropdown.value;
-                let recommendation = "";
-
-                const benefits = {
-                    "amex_blue_cash": { groceries: "6%", gas: "1%", travel: "1%", subscriptions: "3%" },
-                    "chase_freedom": { groceries: "3%", gas: "5%", travel: "5%", subscriptions: "1.5%" },
-                    "bofa_cash": { groceries: "3%", gas: "3%", travel: "2%", subscriptions: "3%" }
-                };
-
-                recommendation = `Use your ${selectedCard.replace("_", " ")} for ${selectedExpense} because it has the highest rewards rate of ${benefits[selectedCard][selectedExpense]}.`;
-
-                recommendationText.innerText = recommendation;
-
-                // Store user selections in Firebase under their unique user ID
-                db.collection("users").doc(user.uid).set({
-                    selectedCard: selectedCard,
-                    selectedExpense: selectedExpense,
-                    lastRecommendation: recommendation
-                }, { merge: true });
-            });
         } else {
             userStatus.innerText = "Not logged in";
             logoutBtn.style.display = "none";
             loginForm.style.display = "block";
         }
+    });
+
+    // 🔹 Find Best Card Feature (Works for ALL users, logged in or not)
+    getRecommendationBtn.addEventListener("click", function () {
+        console.log("Find Best Card button clicked!"); // Debugging log
+
+        const selectedCard = cardDropdown.value;
+        const selectedExpense = expenseDropdown.value;
+        let recommendation = "";
+
+        const benefits = {
+            "amex_blue_cash": { groceries: "6%", gas: "1%", travel: "1%", subscriptions: "3%" },
+            "chase_freedom": { groceries: "3%", gas: "5%", travel: "5%", subscriptions: "1.5%" },
+            "bofa_cash": { groceries: "3%", gas: "3%", travel: "2%", subscriptions: "3%" }
+        };
+
+        if (benefits[selectedCard] && benefits[selectedCard][selectedExpense]) {
+            recommendation = `Use your ${selectedCard.replace("_", " ")} for ${selectedExpense} because it has the highest rewards rate of ${benefits[selectedCard][selectedExpense]}.`;
+        } else {
+            recommendation = "No recommendation available.";
+        }
+
+        recommendationText.innerText = recommendation;
+        console.log("Recommendation:", recommendation); // Debugging log
     });
 });
