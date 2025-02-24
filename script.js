@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const loginBtn = document.getElementById("login-btn");
     const signupBtn = document.getElementById("signup-btn");
     const logoutBtn = document.getElementById("logout-btn");
-    const resendEmailBtn = document.getElementById("resend-email");
     const forgotPasswordLink = document.getElementById("forgot-password");
 
     const showSignup = document.getElementById("show-signup");
@@ -30,14 +29,91 @@ document.addEventListener("DOMContentLoaded", function () {
     const findBestCardBtn = document.getElementById("find-best-card");
     const recommendationText = document.getElementById("recommendation");
 
-    // ✅ Ensure Firebase is properly initialized
     if (!firebase.apps.length) {
-        console.error("🔥 Firebase is not initialized! Check Firebase setup.");
+        console.error("🔥 Firebase is not initialized!");
         return;
     }
 
     const db = firebase.firestore();
     const auth = firebase.auth();
+
+    // ---- CARD BENEFITS DATABASE ----
+    const benefits = {
+        "amex_blue_cash": { name: "Amex Blue Cash Preferred", groceries: "6%", gas: "1%", travel: "1%", subscriptions: "3%" },
+        "chase_freedom": { name: "Chase Freedom Flex", groceries: "3%", gas: "5%", travel: "5%", subscriptions: "1.5%" },
+        "bofa_cash": { name: "Bank of America Customized Cash", groceries: "3%", gas: "3%", travel: "2%", subscriptions: "3%" }
+    };
+
+    let addedCards = [];
+
+    // 🔹 LOAD USER'S SAVED CARDS FROM FIREBASE
+    function loadUserCards(user) {
+        db.collection("users").doc(user.uid).get().then((doc) => {
+            if (doc.exists) {
+                addedCards = doc.data().savedCards || [];
+                updateTable();
+            }
+        }).catch((error) => {
+            console.error("❌ Error loading user data:", error);
+        });
+    }
+
+    // 🔹 UPDATE TABLE WITH ADDED CARDS
+    function updateTable() {
+        cardsTableBody.innerHTML = ""; // Clear table before adding rows
+
+        addedCards.forEach(cardKey => {
+            const cardData = benefits[cardKey];
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${cardData.name}</td>
+                <td>${cardData.groceries}</td>
+                <td>${cardData.gas}</td>
+                <td>${cardData.travel}</td>
+                <td>${cardData.subscriptions}</td>
+                <td>
+                    <button class="remove-card" data-card="${cardKey}">Remove</button>
+                </td>
+            `;
+            cardsTableBody.appendChild(row);
+
+            row.querySelector(".remove-card").addEventListener("click", function () {
+                removeCard(cardKey);
+            });
+        });
+    }
+
+    // 🔹 ADD SELECTED CARD TO USER'S ACCOUNT
+    if (addCardBtn) {
+        addCardBtn.addEventListener("click", function () {
+            if (!auth.currentUser) {
+                alert("Please log in to save your cards.");
+                return;
+            }
+
+            const selectedCard = cardDropdown.value;
+            if (addedCards.includes(selectedCard)) {
+                alert("This card is already added!");
+                return;
+            }
+
+            addedCards.push(selectedCard);
+            updateTable();
+
+            // Save to Firebase
+            db.collection("users").doc(auth.currentUser.uid).set({ savedCards: addedCards }, { merge: true });
+        });
+    }
+
+    // 🔹 REMOVE CARD FROM USER'S ACCOUNT & FIREBASE
+    function removeCard(cardKey) {
+        addedCards = addedCards.filter(card => card !== cardKey);
+        updateTable();
+
+        if (auth.currentUser) {
+            db.collection("users").doc(auth.currentUser.uid).set({ savedCards: addedCards }, { merge: true });
+        }
+    }
 
     // 🔹 LOGIN USER
     if (loginBtn) {
@@ -50,69 +126,57 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
-            console.log("🔄 Attempting to log in with:", email); // Debugging log
-
             auth.signInWithEmailAndPassword(email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
-                    console.log("✅ Login successful:", user.email);
-
                     if (user.emailVerified) {
                         userStatus.innerText = `Logged in as ${user.email}`;
                         logoutBtn.style.display = "block";
                         loginForm.style.display = "none";
                         signupForm.style.display = "none";
+                        loadUserCards(user);
                     } else {
                         alert("⚠️ Your email is not verified. Please verify before logging in.");
                         auth.signOut();
                     }
                 })
                 .catch((error) => {
-                    console.error("❌ Login failed:", error.message);
-                    alert("Login failed: " + error.message);
+                    alert("❌ Login failed: " + error.message);
                 });
         });
     }
 
-    // 🔹 SIGNUP USER
-    if (signupBtn) {
-        signupBtn.addEventListener("click", function () {
-            const email = signupEmail.value.trim();
-            const password = signupPassword.value.trim();
-            const confirmPassword = signupPasswordConfirm.value.trim();
-
-            if (!email || !password || !confirmPassword) {
-                alert("⚠️ Please fill out all fields.");
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                alert("⚠️ Passwords do not match.");
-                return;
-            }
-
-            auth.createUserWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    const user = userCredential.user;
-
-                    // Send email verification
-                    user.sendEmailVerification()
-                        .then(() => {
-                            alert("📩 A verification email has been sent. Please verify before logging in.");
-                            signupForm.style.display = "none";
-                            loginForm.style.display = "block";
-                        })
-                        .catch((error) => {
-                            alert("❌ Error sending verification email: " + error.message);
-                        });
-                })
-                .catch((error) => {
-                    alert("❌ Signup failed: " + error.message);
-                });
+    // 🔹 LOGOUT USER
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", function () {
+            auth.signOut().then(() => {
+                userStatus.innerText = "Not logged in";
+                logoutBtn.style.display = "none";
+                loginForm.style.display = "block";
+                addedCards = [];
+                updateTable();
+            });
         });
     }
 
-    // 🔹 PASSWORD RESET
+    // 🔹 AUTH STATE LISTENER
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            userStatus.innerText = `Logged in as ${user.email}`;
+            logoutBtn.style.display = "block";
+            loginForm.style.display = "none";
+            signupForm.style.display = "none";
+            loadUserCards(user);
+        } else {
+            userStatus.innerText = "Not logged in";
+            logoutBtn.style.display = "none";
+            loginForm.style.display = "block";
+            addedCards = [];
+            updateTable();
+        }
+    });
+
+    // 🔹 RESET PASSWORD FUNCTIONALITY
     if (forgotPasswordLink) {
         forgotPasswordLink.addEventListener("click", function () {
             const email = loginEmail.value.trim();
@@ -130,33 +194,4 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
         });
     }
-
-    // 🔹 LOGOUT USER
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", function () {
-            auth.signOut().then(() => {
-                console.log("✅ User logged out.");
-                userStatus.innerText = "Not logged in";
-                logoutBtn.style.display = "none";
-                loginForm.style.display = "block";
-            });
-        });
-    }
-
-    // 🔹 AUTH STATE LISTENER
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            console.log("🔄 User is logged in:", user.email);
-            userStatus.innerText = `Logged in as ${user.email}`;
-            logoutBtn.style.display = "block";
-            loginForm.style.display = "none";
-            signupForm.style.display = "none";
-        } else {
-            console.log("🚪 No user is logged in.");
-            userStatus.innerText = "Not logged in";
-            logoutBtn.style.display = "none";
-            loginForm.style.display = "block";
-        }
-    });
-
 });
